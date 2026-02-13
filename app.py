@@ -1,10 +1,10 @@
 from flask import Flask, render_template, request, jsonify
 import speech_recognition as sr
-from transformers import pipeline
+from textblob import TextBlob
 import librosa
+import os
 
 app = Flask(__name__)
-sentiment_model = pipeline("sentiment-analysis")
 
 def analyze_audio(audio_path):
     y, sr_rate = librosa.load(audio_path)
@@ -15,15 +15,17 @@ def analyze_audio(audio_path):
         audio = recognizer.record(source)
         text = recognizer.recognize_google(audio)
 
-    sentiment = sentiment_model(text)
-
     timeline = []
     interval = 5
     current_time = 0
+
     for _ in range(int(duration // interval)):
+        polarity = TextBlob(text).sentiment.polarity
+        emotion = "POSITIVE" if polarity > 0 else "NEGATIVE"
+
         timeline.append({
             "time": f"{current_time//60}:{current_time%60}",
-            "emotion": sentiment[0]["label"]
+            "emotion": emotion
         })
         current_time += interval
 
@@ -40,4 +42,5 @@ def index():
     return render_template("index.html")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

@@ -16,6 +16,8 @@
 
     <script>
 const form = document.getElementById("uploadForm");
+const chartCanvas = document.getElementById("emotionChart");
+let emotionChart = null;
 
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -27,26 +29,86 @@ form.addEventListener("submit", async (e) => {
             body: data
         });
 
+        const payload = await res.json();
+
         if (!res.ok) {
-            alert("Server error while analyzing audio");
+            alert(payload.error || "Server error while analyzing audio");
             return;
         }
 
-        const emotions = await res.json();
-        const labels = emotions.map(e => e.time);
-        const values = emotions.map(e => e.emotion === "POSITIVE" ? 1 : 0);
+        if (!Array.isArray(payload)) {
+            alert("Unexpected response from server.");
+            return;
+        }
 
-        new Chart(document.getElementById("emotionChart"), {
+        const labels = payload.map(e => e.time);
+        const emotionLabels = payload.map(e => e.emotion);
+        const uniqueEmotions = [...new Set(emotionLabels)];
+
+        // Map each emotion label to an index so we can plot it numerically
+        const emotionIndexMap = {};
+        uniqueEmotions.forEach((label, idx) => {
+            emotionIndexMap[label] = idx;
+        });
+
+        const values = emotionLabels.map(label => emotionIndexMap[label]);
+
+        // Destroy previous chart instance if it exists
+        if (emotionChart) {
+            emotionChart.destroy();
+        }
+
+        const ctx = chartCanvas.getContext("2d");
+        emotionChart = new Chart(ctx, {
             type: "line",
             data: {
                 labels: labels,
                 datasets: [{
                     label: "Emotion Timeline",
-                    data: values
+                    data: values,
+                    borderColor: "rgba(75, 192, 192, 1)",
+                    backgroundColor: "rgba(75, 192, 192, 0.2)",
+                    tension: 0.1,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
                 }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Time (mm:ss)"
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: "Emotion"
+                        },
+                        ticks: {
+                            stepSize: 1,
+                            precision: 0,
+                            callback: function(value) {
+                                return uniqueEmotions[value] ?? value;
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const emotion = uniqueEmotions[context.parsed.y];
+                                return `${emotion} @ ${context.label}`;
+                            }
+                        }
+                    }
+                }
             }
         });
     } catch (err) {
+        console.error(err);
         alert("Analysis failed. Please try another audio file.");
     }
 });

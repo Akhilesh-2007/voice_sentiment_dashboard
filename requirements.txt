@@ -1,5 +1,6 @@
 flask
 speechrecognition
 librosa
-textblob
+transformers
+torch
 numpy

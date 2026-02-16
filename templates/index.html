@@ -15,32 +15,42 @@
     <canvas id="emotionChart"></canvas>
 
     <script>
-        const form = document.getElementById("uploadForm");
+const form = document.getElementById("uploadForm");
 
-        form.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const data = new FormData(form);
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = new FormData(form);
 
-            const res = await fetch("/", {
-                method: "POST",
-                body: data
-            });
-
-            const emotions = await res.json();
-            const labels = emotions.map(e => e.time);
-            const values = emotions.map(e => e.emotion === "POSITIVE" ? 1 : 0);
-
-            new Chart(document.getElementById("emotionChart"), {
-                type: "line",
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: "Emotion Timeline",
-                        data: values
-                    }]
-                }
-            });
+    try {
+        const res = await fetch("/", {
+            method: "POST",
+            body: data
         });
-    </script>
+
+        if (!res.ok) {
+            alert("Server error while analyzing audio");
+            return;
+        }
+
+        const emotions = await res.json();
+        const labels = emotions.map(e => e.time);
+        const values = emotions.map(e => e.emotion === "POSITIVE" ? 1 : 0);
+
+        new Chart(document.getElementById("emotionChart"), {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Emotion Timeline",
+                    data: values
+                }]
+            }
+        });
+    } catch (err) {
+        alert("Analysis failed. Please try another audio file.");
+    }
+});
+</script>
+
 </body>
 </html>
